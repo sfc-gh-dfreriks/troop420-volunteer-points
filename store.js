@@ -68,6 +68,7 @@
       Object.assign(e, { status, reviewed_by: reviewer, reviewed_at: new Date().toISOString(), review_note: note || null }); save(db);
     },
     async deleteEntry(id) { const db = this.db(); db.entries = db.entries.filter(e => e.id !== id); save(db); },
+    async updateEntry(id, patch) { const db = this.db(); Object.assign(db.entries.find(e => e.id === id), patch); save(db); },
     async updateFamily(year, name, patch) { const db = this.db(); Object.assign(db.families.find(f => f.year === year && f.name === name), patch); save(db); },
     async updateAdult(year, name, patch) { const db = this.db(); Object.assign(db.adults.find(a => a.year === year && a.name === name), patch); save(db); },
     async reassign(year, adult, fam) {
@@ -142,6 +143,7 @@
       chk(await sb.from("entries").update({ status, reviewed_by: reviewer, reviewed_at: new Date().toISOString(), review_note: note || null }).eq("id", id));
     },
     async deleteEntry(id) { chk(await sb.from("entries").delete().eq("id", id)); },
+    async updateEntry(id, patch) { chk(await sb.from("entries").update(patch).eq("id", id)); },
     async updateFamily(year, name, patch) { chk(await sb.from("families").update(patch).eq("year", year).eq("name", name)); },
     async updateAdult(year, name, patch) { chk(await sb.from("adults").update(patch).eq("year", year).eq("name", name)); },
     async reassign(year, adult, fam) {

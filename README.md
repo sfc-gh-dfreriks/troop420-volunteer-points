@@ -5,12 +5,12 @@ A public, static volunteer-points tracker for Troop 420 families, hosted on GitH
 
 | Who | Can do |
 | --- | --- |
-| Anyone (public) | See family standings and each family's tracker, the price list and the rules. Submit a claim for work they weren't credited for. |
+| Anyone (public) | See family standings and each family's tracker, the points list and the rules. Submit a claim for work they weren't credited for. |
 | Volunteer committee (admin login) | Approve or reject claims (with audit flags), add entries, import TroopWebHost, set targets, manage households, publish, export CSV. |
 
 ## What it enforces (from the points document)
 
-- **Ladder:** 100 / 60 / 40 / 25 / 15 / 10 / 5. The full role price list is in `rules.js`.
+- **Ladder:** 100 / 60 / 40 / 25 / 15 / 10 / 5. The full role points list is in `rules.js`.
 - **Targets:**
   - 100 per family per year, January to December.
   - 60 for a single registered adult.
@@ -22,7 +22,7 @@ A public, static volunteer-points tracker for Troop 420 families, hosted on GitH
   - Merit badge counselling: 60.
   - Caps are applied in date order, and the tracker shows "capped from" on any line that hit one.
 - **Audit flags in the approval queue:**
-  - off-price or off-ladder points;
+  - points that differ from the points list, or are off the ladder;
   - date outside the year, or in the future;
   - registered-adult roles claimed by an unregistered adult;
   - YPT not current;
@@ -51,7 +51,12 @@ The conversion ratios live in `config.js → twh`. They are committee policy, so
 - Positions such as Assistant Scoutmaster, Treasurer or Committee Chair earn post credit.
 - An adult named in an event's **Leaders** column earns lead credit for that event's type. For example, leading a Community Service food drive earns the service project lead rate (25).
 - Both kinds of credit arrive as **pending suggestions** in the approval queue. The committee confirms them, one at a time or with the bulk button for lines that have no flags. Re-importing never duplicates a suggestion and never changes a decision already made.
-- The mappings are in `config.js` → `twhPositions` and `twhEventLeadTypes`.
+- **Attendance credit** comes from **Export Event Participation To Excel** (report 45935):
+  - adults on a High Adventure trek (such as Sea Base) earn 60 for a week in the field;
+  - a summer camp week earns 60;
+  - Wood Badge earns 40, PTC 40, IOLS 25, and other adult training 15.
+  The camping nights from those events are taken out of the annual overnight credit, so no night is counted twice.
+- The mappings are in `config.js` → `twhPositions`, `twhEventLeadTypes` and `twhAttendance`.
 
 Everything that TroopWebHost does not record comes in through **Log missing credit** and committee approval. That includes committee posts, boards of review, driving other Scouts, grubmaster, merit badge counselling and training.
 

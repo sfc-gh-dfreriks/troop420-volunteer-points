@@ -60,11 +60,13 @@
     const entries = [];
     for (const a of adults) {
       const p = a._p;
-      const nights = p.nights + (cfg.includeCabinNights ? p.cabin : 0);
+      const allNights = p.nights + (cfg.includeCabinNights ? p.cabin : 0);
+      const covered = Math.min(allNights, (overrides.__coveredNights || {})[a.name] || 0);
+      const nights = allNights - covered;
       const trips = Math.floor(nights / cfg.campingNightsPerTrip);
       if (trips > 0) entries.push({
         year, family_name: a.family_name, adult_name: a.name, role_id: "overnight",
-        contribution: `Overnight adult - ${trips} trip${trips > 1 ? "s" : ""} (${nights} camping nights in TroopWebHost)`,
+        contribution: `Overnight adult - ${trips} trip${trips > 1 ? "s" : ""} (${allNights} camping nights in TroopWebHost${covered ? `; ${covered} credited as week-long events/training` : ""})`,
         band: 25, points: 25 * trips, work_date: asOf, source: "twh", status: "approved", reviewed_by: "TroopWebHost import"
       });
       const hours = p.service + (cfg.includeConservationHours ? p.conservation : 0);
@@ -92,10 +94,11 @@
   // Which TroopWebHost export is this? Returns {kind, rows(objects)} or null.
   function sniff(arrayBuffer) {
     const rows = readRows(arrayBuffer);
-    const h = rows.findIndex(r => r.map(norm).includes("Name") || r.map(norm).includes("Adult") || r.map(norm).includes("Event"));
+    const h = rows.findIndex(r => ["Name", "Adult", "Event", "Participant"].some(k => r.map(c => norm(c).replace(/^\uFEFF/, "")).includes(k)));
     if (h < 0) return null;
     const head = rows[h].map(c => norm(c).replace(/^\uFEFF/, ""));
     const objs = rows.slice(h + 1).map(r => Object.fromEntries(head.map((k, i) => [k, norm(r[i])])));
+    if (head.includes("Participant") && head.includes("Adult?")) return { kind: "participation", rows: objs };
     if (head.includes("Position") && head.includes("Adult")) return { kind: "positions", rows: objs };
     if (head.includes("Leaders") && head.includes("Event") && head.includes("Type")) return { kind: "events", rows: objs };
     if (head.includes("Year") && head.includes("Type") && head.includes("Name")) return { kind: "annual" };
@@ -132,7 +135,7 @@
   const splitLeaders = s => norm(s).split(/(?<=[a-z])(?=[A-Z][a-z]+\s)|\s*[;,\n]\s*/).map(norm).filter(Boolean);
 
   // ctx: { year, roster: [{name, family_name}], cfg, today }
-  function buildRoles(positions, events, ctx) {
+  function buildRoles(positions, events, ctx, participation) {
     const { year, cfg } = ctx;
     const today = ctx.today || new Date().toISOString().slice(0, 10);
     let match = makeMatcher(ctx.roster.map(a => a.name));
@@ -184,7 +187,27 @@
         }, `twh:lead:${date}:${r.Event}:${adult}:${role.id}`);
       }
     }
-    return { entries: out, newAdults, unmatched: [...unmatched].length, unmappedPositions: [...unmappedPositions], unmappedTypes: [...unmappedTypes] };
+    // Attendance credit (45935): High Adventure, summer camp, Wood Badge, PTC, IOLS, adult training.
+    const coveredNights = {};
+    const rules = (cfg.twhAttendance || []).map(r => ({ ...r, rx: r.name ? new RegExp(r.name, "i") : null }));
+    for (const r of participation || []) {
+      if (!/^y/i.test(r["Adult?"] || "")) continue;
+      const date = isoDate(r.Date);
+      if (!date || date.slice(0, 4) !== String(year) || date > today) continue;
+      const nights = (parseFloat(r["Camping Nights"]) || 0) + (parseFloat(r["Cabin Camping"]) || 0);
+      const rule = rules.find(x => (!x.eventType || x.eventType === r["Event Type"]) && (!x.rx || x.rx.test(r.Event)) && nights >= (x.minNights || 0));
+      if (!rule) continue;
+      const role = T420.BY_ID[rule.role]; if (!role) continue;
+      const adult = match(r.Participant); if (!adult) { unmatched.add(r.Participant); continue; }
+      if (rule.coversNights && nights) coveredNights[adult] = (coveredNights[adult] || 0) + nights;
+      const key = role.kind === "post" ? `twh:att:${year}:${adult}:${role.id}` : `twh:att:${date}:${r.Event}:${adult}:${role.id}`;
+      push({
+        year, family_name: famOf[adult], adult_name: adult, role_id: role.id,
+        contribution: `${role.name} - attended "${r.Event}"${nights ? ` (${nights} nights)` : ""} (${r["Event Type"]}, TroopWebHost)`,
+        band: role.pts, points: role.pts, work_date: date, source: "twh", status: "pending"
+      }, key);
+    }
+    return { entries: out, newAdults, coveredNights, unmatched: [...unmatched].length, unmappedPositions: [...unmappedPositions], unmappedTypes: [...unmappedTypes] };
   }
 
   window.T420Ingest = { parseWorkbook, buildYear, sniff, buildRoles, splitLeaders, isoDate };

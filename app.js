@@ -80,7 +80,7 @@
   function vClaim() {
     const adults = st.data.adults.slice().sort((a, b) => a.name.localeCompare(b.name));
     return `<div class="card"><h2>Log credit you didn't get</h2>
-      <p class="mute">TroopWebHost records camping nights and service hours. Committee posts, boards of review, driving other Scouts, grubmaster and the rest of the price list need logging here.
+      <p class="mute">TroopWebHost records camping nights and service hours. Committee posts, boards of review, driving other Scouts, grubmaster and the rest of the points list need logging here.
       Your claim goes to the volunteer committee for verification and appears on the standings once approved.</p>
       ${st.flash ? `<div class="msg ${st.flash.ok ? "ok" : "err"}">${esc(st.flash.text)}</div>` : ""}
       <form id="claimForm">
@@ -102,10 +102,10 @@
       </form></div>`;
   }
 
-  function vPrices() {
+  function vPoints() {
     const groups = {};
     T420.CATALOG.filter(r => !r.adminOnly).forEach(r => (groups[r.group] = groups[r.group] || []).push(r));
-    return `<div class="card"><h2>Price list</h2><p class="mute">Seven values on the ladder: ${T420.LADDER.join(", ")}. Nothing else appears anywhere.</p>
+    return `<div class="card"><h2>Points list</h2><p class="mute">Seven values on the ladder: ${T420.LADDER.join(", ")}. Nothing else appears anywhere.</p>
       ${Object.entries(groups).map(([g, rs]) => `<h3>${esc(g)}</h3><table class="price"><tbody>${rs.map(r =>
         `<tr><td>${esc(r.name)}${r.reg ? ' <span class="pill">registered adult</span>' : ""}${r.cap ? ` <span class="pill pending">cap ${r.cap === "mbc" ? 60 : 30}/yr</span>` : ""}${r.kind === "post" ? ' <span class="mute small">· once per year</span>' : ""}</td><td class="n"><b>${r.pts}</b></td></tr>`).join("")}</tbody></table>`).join("")}</div>`;
   }
@@ -177,7 +177,7 @@
         <label>Date<input name="work_date" type="date" required></label></div>
         <datalist id="adultList3">${st.data.adults.map(a => `<option value="${esc(a.name)}">`).join("")}</datalist>
         <div class="row"><label>Role<select name="role_id">${roleOptions(true)}</select></label><label>Quantity<input name="qty" type="number" min="1" value="1"></label>
-        <label>Points override (in lieu / partial year)<input name="points" type="number" min="0" placeholder="leave blank for price list"></label></div>
+        <label>Points override (in lieu / partial year)<input name="points" type="number" min="0" placeholder="leave blank for points list"></label></div>
         <label>Detail<input name="notes"></label><p><button>Add approved entry</button></p></form></div>`;
   }
 
@@ -189,7 +189,8 @@
       <p class="small"><b>Choose one or more files</b> – each is recognised automatically:</p>
       <ul class="small"><li><b>Event Participation Annual Summary</b> (XLS) – camping nights and service hours (auto-approved)</li>
         <li><b>Adult Leaders By Position</b> (54040) – posts such as Assistant Scoutmaster, Treasurer, Committee Chair</li>
-        <li><b>Export Events To Excel</b> (53104) – event leaders, e.g. who led the food drive</li></ul>
+        <li><b>Export Events To Excel</b> (53104) – event leaders, e.g. who led the food drive</li>
+        <li><b>Export Event Participation To Excel</b> (45935) – who attended High Adventure, summer camp, Wood Badge, PTC and other adult training</li></ul>
       <p class="small mute">Positions and event leaders become <b>pending suggestions</b> in the Approval queue for the committee to confirm. Import the annual summary first so leaders can be matched to adults.</p>
       <input type="file" id="xls" accept=".xls,.xlsx,.csv" multiple>
       ${st.roles ? (() => { const r = st.roles.result; const by = {}; r.entries.forEach(e => { by[e.role_id] = (by[e.role_id] || 0) + 1; });
@@ -199,6 +200,7 @@
         ${r.unmatched ? `${r.unmatched} leader names did not match an adult (usually Scouts) and are ignored.` : ""}</p>
         ${r.unmappedPositions.length || r.unmappedTypes.length ? `<p class="flag">Not mapped in config.js (no points): ${esc([...r.unmappedPositions, ...r.unmappedTypes].join(", "))}</p>` : ""}
         <table class="small"><thead><tr><th>Role</th><th class="n">Lines</th></tr></thead><tbody>${Object.entries(by).map(([k, n]) => `<tr><td>${esc(T420.BY_ID[k]?.name || k)}</td><td class="n">${n}</td></tr>`).join("")}</tbody></table>
+        ${r.coveredNights && Object.keys(r.coveredNights).length ? `<p class="small">${Object.keys(r.coveredNights).length} adults have week-long or training nights (${Object.values(r.coveredNights).reduce((a, b) => a + b, 0)} nights). These come out of their annual overnight credit, so no night is counted twice.</p>` : ""}
         <button id="doRoles">Add ${r.entries.length} suggestions to the approval queue</button>`; })() : ""}
       ${p ? `<h3>Preview – ${p.year}</h3>
         <p>${p.built.families.length} families · ${p.built.adults.length} adults · ${p.built.entries.length} point lines (${p.built.entries.reduce((s, e) => s + e.points, 0)} pts).
@@ -244,7 +246,7 @@
     document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.tab === (tab === "family" ? "standings" : tab)));
     const v = $("#view");
     try {
-      v.innerHTML = ({ standings: vStandings, family: () => vFamily(decodeURIComponent(arg || "")), claim: vClaim, prices: vPrices, rules: vRules, admin: vAdmin }[tab] || vStandings)();
+      v.innerHTML = ({ standings: vStandings, family: () => vFamily(decodeURIComponent(arg || "")), claim: vClaim, points: vPoints, rules: vRules, admin: vAdmin }[tab] || vStandings)();
     } catch (e) { v.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
     st.flash = null;
   }
@@ -306,8 +308,27 @@
       else if (t.id === "csv") { csv(); return; }
       else if (t.id === "reset") { if (!confirm("Reset all demo data in this browser?")) return; await S.reset(); }
       else if (t.id === "doRoles") {
-        const n = await S.importRoles(st.year, st.roles.result); st.roles = null; st.adminTab = "queue";
-        say(`${n} new TroopWebHost suggestions added to the approval queue.`);
+        const r = st.roles.result, n = await S.importRoles(st.year, r);
+        let adjusted = 0;
+        if (r.coveredNights && Object.keys(r.coveredNights).length) {
+          // Week-long events / training are credited at their own rate: take their nights out of the
+          // annual-summary overnight line so no night is counted twice. Remembered for annual re-imports.
+          const ov = { ...(st.data.settings.familyOverrides || {}), __coveredNights: r.coveredNights };
+          await S.saveSettings(st.year, { ...st.data.settings, familyOverrides: ov });
+          for (const e of st.data.entries.filter(x => x.source === "twh" && !x.notes && x.role_id === "overnight" && r.coveredNights[x.adult_name])) {
+            const all = parseFloat((e.contribution.match(/\((\d+(?:\.\d+)?) camping nights/) || [])[1]);
+            if (!all) continue;
+            const covered = Math.min(all, r.coveredNights[e.adult_name]);
+            const trips = Math.floor((all - covered) / cfg.twh.campingNightsPerTrip);
+            if (trips > 0 && 25 * trips === Number(e.points)) continue;   // already adjusted
+            if (trips <= 0) await S.deleteEntry(e.id);
+            else await S.updateEntry(e.id, { points: 25 * trips,
+              contribution: `Overnight adult - ${trips} trip${trips > 1 ? "s" : ""} (${all} camping nights in TroopWebHost; ${covered} credited as week-long events/training)` });
+            adjusted++;
+          }
+        }
+        st.roles = null; st.adminTab = "queue";
+        say(`${n} new TroopWebHost suggestions added to the approval queue.${adjusted ? ` ${adjusted} overnight lines adjusted so week-long nights are not counted twice.` : ""}`);
       }
       else if (t.id === "bulkTwh") {
         const ctx = { adults: st.data.adults, entries: st.data.entries };
@@ -329,16 +350,17 @@
     try {
       if (t.id === "year") { st.year = +t.value; return refresh(); }
       if (t.id === "xls" && t.files.length) {
-        let annual = null, positions = null, events = null; const names = [], unknown = [];
+        let annual = null, positions = null, events = null, participation = null; const names = [], unknown = [];
         for (const f of t.files) {
           const buf = await f.arrayBuffer(), k = T420Ingest.sniff(buf);
           if (!k) unknown.push(f.name);
           else if (k.kind === "annual") annual = buf;
           else if (k.kind === "positions") { positions = k.rows; names.push("positions"); }
           else if (k.kind === "events") { events = k.rows; names.push("event leaders"); }
+          else if (k.kind === "participation") { participation = k.rows; names.push("event participation"); }
         }
         if (unknown.length) say(`Not a recognised TroopWebHost export: ${unknown.join(", ")}`, false);
-        st.roles = positions || events ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg }) } : null;
+        st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg }, participation) } : null;
         if (!annual) { st.parsed = null; return render(); }
         const people = T420Ingest.parseWorkbook(annual);
         const years = [...new Set(people.map(p => p.year))].sort((a, b) => b - a);

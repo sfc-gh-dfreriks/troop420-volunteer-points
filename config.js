@@ -51,6 +51,19 @@ window.T420_CONFIG = {
     "Board of Review Coordinator": null              // no line in the points system; boards are claimed per board
   },
   twhOnlyIfStartedInYear: ["register_mbc", "iols"],
+
+  // Attendance credit from 45935 Calendar > Export Event Participation To Excel (one row per person per event).
+  // Rules are tried in order; first match wins. Adults only, events in the year that have already happened.
+  // coversNights: the event's camping nights are taken OUT of the annual-summary overnight credit,
+  // because a week in the field is priced at 60, not 25 per two nights (no double counting).
+  twhAttendance: [
+    { role: "high_adventure_adult", eventType: "High Adventure Trek", minNights: 4, coversNights: true },
+    { role: "summer_camp_week", name: "summer camp", minNights: 4, coversNights: true },
+    { role: "wood_badge", name: "wood ?badge", coversNights: true },
+    { role: "ptc", name: "philmont training center|\\bPTC\\b", coversNights: true },
+    { role: "iols", name: "IOLS|outdoor leader skills", coversNights: true },
+    { role: "position_training", eventType: "Training", name: "adult training|wilderness first aid|training conference|basic leader|SYT|ILST trainer", coversNights: false }
+  ],
   twhEventLeadTypes: {
     "Community Service": "service_lead",
     "Conservation-related Service Project": "service_lead",

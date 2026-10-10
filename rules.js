@@ -21,7 +21,8 @@
     R("fundraising_chair", "Senior chairs", "Fundraising Chair", 60, "post", { covers: ["fundraiser_lead", "fundraiser_shift"] }),
     R("equipment_chair", "Senior chairs", "Equipment & Quartermaster Chair", 60, "post", { covers: ["gear_session"] }),
     R("asm_active", "Senior chairs", "Assistant Scoutmaster (active)", 60, "post", { reg: true }),
-    R("high_adventure_lead", "Senior chairs", "High Adventure contingent lead", 60, "each", { reg: true }),
+    R("high_adventure_lead", "Senior chairs", "High Adventure contingent lead", 60, "each", { reg: true, covers: ["high_adventure_adult"] }),
+    R("high_adventure_adult", "Senior chairs", "High Adventure trek, adult in the field (full trek)", 60, "each", { reg: true }),
     R("summer_camp_week", "Senior chairs", "Summer camp week, adult in residence", 60, "each", { reg: true }),
 
     R("secretary", "Year-long coordinators", "Secretary", 40, "post"),
@@ -59,6 +60,7 @@
     R("committee_meeting", "Field and event work", "Committee meeting attendance", 5, "each", { cap: "micro", cap2: "meeting" }),
 
     R("wood_badge", "Training and recruitment", "Complete Wood Badge during the year", 40, "post"),
+    R("ptc", "Training and recruitment", "Complete a Philmont Training Center (PTC) course", 40, "post"),
     R("iols", "Training and recruitment", "Complete Introduction to Outdoor Leader Skills", 25, "post"),
     R("recruit_family", "Training and recruitment", "Recruit a new family that registers and recharters", 25, "each"),
     R("position_training", "Training and recruitment", "Complete position-specific training for a post you hold", 15, "each"),
@@ -129,7 +131,7 @@
     const role = BY_ID[entry.role_id];
     const year = Number(entry.year);
     if (!role) out.push("Unknown role");
-    if (role && !role.variable && Number(entry.points) !== role.pts) out.push(`Points ${entry.points} differ from price list (${role.pts})`);
+    if (role && !role.variable && Number(entry.points) !== role.pts) out.push(`Points ${entry.points} differ from points list (${role.pts})`);
     if (!LADDER.includes(Number(entry.points)) && !(role && role.variable) && Number(entry.points) !== 0) out.push("Points are off the ladder");
     if (entry.work_date) {
       if (Number(entry.work_date.slice(0, 4)) !== year) out.push("Date is outside the Scouting year");

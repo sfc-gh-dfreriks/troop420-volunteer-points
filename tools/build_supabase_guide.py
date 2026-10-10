@@ -123,7 +123,7 @@ table([["Item", "Value"],
 h("What this changes", 2)
 para("Today the site runs in demo mode: fictional families, and every claim or approval lives only in the browser that made it. "
      "Connecting Supabase gives the troop one shared database and a real committee login, so:")
-bullet(("Anyone", "b"), " can see the standings, the family trackers, the price list and the rules, and can submit a claim for missing credit.")
+bullet(("Anyone", "b"), " can see the standings, the family trackers, the points list and the rules, and can submit a claim for missing credit.")
 bullet(("Committee members", "b"), " sign in with an email and password to approve or reject claims, import TroopWebHost, set targets and publish.")
 bullet("The database itself enforces the rules: the public sees approved lines only, claims always arrive as pending, only admins approve, "
        "and an admin can never approve their own line.")
@@ -353,7 +353,7 @@ table([["Symptom", "Cause and fix"],
 
 h("Appendix D - Who can do what (enforced by the database)")
 table([["Action", "Public", "Committee admin"],
-       ["See standings, approved lines, price list, rules", "Yes", "Yes"],
+       ["See standings, approved lines, points list, rules", "Yes", "Yes"],
        ["See pending/rejected claims and claimant emails", "No", "Yes"],
        ["Submit a claim (always lands as pending)", "Yes", "Yes"],
        ["Approve / reject / delete entries", "No", "Yes, except your own lines"],
