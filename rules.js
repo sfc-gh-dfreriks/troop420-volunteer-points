@@ -131,8 +131,10 @@
     const role = BY_ID[entry.role_id];
     const year = Number(entry.year);
     if (!role) out.push("Unknown role");
-    if (role && !role.variable && Number(entry.points) !== role.pts) out.push(`Points ${entry.points} differ from points list (${role.pts})`);
-    if (!LADDER.includes(Number(entry.points)) && !(role && role.variable) && Number(entry.points) !== 0) out.push("Points are off the ladder");
+    // Per-occurrence roles may be claimed as a quantity (3 boards = 30), so whole multiples are fine.
+    const pts = Number(entry.points), multiple = role && role.kind === "each" && role.pts > 0 && pts > 0 && pts % role.pts === 0;
+    if (role && !role.variable && pts !== role.pts && !multiple) out.push(`Points ${entry.points} differ from points list (${role.pts})`);
+    if (!LADDER.includes(pts) && !(role && role.variable) && pts !== 0 && !multiple) out.push("Points are off the ladder");
     if (entry.work_date) {
       if (Number(entry.work_date.slice(0, 4)) !== year) out.push("Date is outside the Scouting year");
       if (entry.work_date > new Date().toISOString().slice(0, 10)) out.push("Future date - points are earned when the work is done");
@@ -148,8 +150,10 @@
       .forEach(e => out.push(`May be inside a post they hold (${BY_ID[e.role_id].name}) - no double counting`));
     if (entry.role_id === "committee_meeting" && theirs.some(e => ["committee_chair", "treasurer", "secretary"].includes(e.role_id)))
       out.push("Meeting attendance is part of a committee post they hold");
-    if (theirs.some(e => e.role_id === entry.role_id && e.work_date === entry.work_date && BY_ID[e.role_id]?.kind === "each"))
-      out.push("Possible duplicate (same role, same date)");
+    // Duplicate = same role, same day AND same event/description (two different boards on one evening are fine)
+    if (theirs.some(e => e.role_id === entry.role_id && e.work_date === entry.work_date && BY_ID[e.role_id]?.kind === "each"
+        && String(e.contribution || "").toLowerCase() === String(entry.contribution || "").toLowerCase()))
+      out.push("Possible duplicate (same role, date and event)");
     if (theirs.some(e => e.role_id === "committee_chair")) out.push("Committee Chair's entry - a second committee member must sign");
     return out;
   }

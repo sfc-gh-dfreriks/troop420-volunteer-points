@@ -236,6 +236,27 @@
         band: role.pts, points: role.pts, work_date: date, source: "twh", status: "pending"
       }, key);
     }
+    // Adults missing from the annual summary still earn their nights / service hours, from the per-event rows.
+    const annualAdults = new Set(ctx.roster.map(a => a.name));
+    const tot = {};
+    for (const r of participation || []) {
+      if (!/^y/i.test(r["Adult?"] || "")) continue;
+      const date = isoDate(r.Date); if (!date || date.slice(0, 4) !== String(year) || date > today) continue;
+      const adult = match(r.Participant); if (!adult || annualAdults.has(adult)) continue;
+      const t = tot[adult] = tot[adult] || { nights: 0, hours: 0 };
+      t.nights += (parseFloat(r["Camping Nights"]) || 0) + (cfg.twh.includeCabinNights ? parseFloat(r["Cabin Camping"]) || 0 : 0);
+      t.hours += (parseFloat(r["Service Hours"]) || 0) + (cfg.twh.includeConservationHours ? parseFloat(r["Conservation Hours"]) || 0 : 0);
+    }
+    for (const [adult, t] of Object.entries(tot)) {
+      const nights = Math.max(0, t.nights - (coveredNights[adult] || 0)), trips = Math.floor(nights / cfg.twh.campingNightsPerTrip);
+      if (trips > 0) push({ year, family_name: famOf[adult], adult_name: adult, role_id: "overnight",
+        contribution: `Overnight adult - ${trips} trip${trips > 1 ? "s" : ""} (${nights} camping nights from TroopWebHost event participation)`,
+        band: 25, points: 25 * trips, work_date: today > yearEnd ? yearEnd : today, source: "twh", status: "pending" }, `twh:hrs:${year}:${adult}:overnight`);
+      const credits = Math.floor(t.hours / cfg.twh.serviceHoursPerCredit);
+      if (credits > 0) push({ year, family_name: famOf[adult], adult_name: adult, role_id: "service_volunteer",
+        contribution: `Service - ${t.hours} hours from TroopWebHost event participation (${credits} x ${cfg.twh.serviceHoursPerCredit}h credits)`,
+        band: 10, points: 10 * credits, work_date: today > yearEnd ? yearEnd : today, source: "twh", status: "pending" }, `twh:hrs:${year}:${adult}:service`);
+    }
     return { entries: out, newAdults, coveredNights, unmatched: [...unmatched].length, unmappedPositions: [...unmappedPositions], unmappedTypes: [...unmappedTypes] };
   }
 
