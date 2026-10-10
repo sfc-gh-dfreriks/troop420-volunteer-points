@@ -82,6 +82,15 @@
       db.entries.filter(e => e.year === year && e.adult_name === adult).forEach(e => (e.family_name = fam));
       save(db);
     },
+    async mergeFamily(year, from, to) {
+      const db = this.db(), src = db.families.find(f => f.year === year && f.name === from);
+      let dst = db.families.find(f => f.year === year && f.name === to);
+      if (!dst) { dst = { year, name: to, scouts: 0, target_override: null, join_quarter: null }; db.families.push(dst); }
+      dst.scouts = (dst.scouts || 0) + (src?.scouts || 0);
+      db.adults.filter(a => a.year === year && a.family_name === from).forEach(a => (a.family_name = to));
+      db.entries.filter(e => e.year === year && e.family_name === from).forEach(e => (e.family_name = to));
+      db.families = db.families.filter(f => !(f.year === year && f.name === from)); save(db);
+    },
     async saveSettings(year, s) { const db = this.db(); db.settings[year] = { ...(db.settings[year] || {}), ...s }; save(db); },
     async importYear(b) {
       const db = this.db(), y = b.year;
@@ -158,6 +167,15 @@
       chk(await sb.from("families").upsert({ year, name: fam }, { onConflict: "year,name", ignoreDuplicates: true }));
       chk(await sb.from("adults").update({ family_name: fam }).eq("year", year).eq("name", adult));
       chk(await sb.from("entries").update({ family_name: fam }).eq("year", year).eq("adult_name", adult));
+    },
+    async mergeFamily(year, from, to) {
+      const fams = chk(await sb.from("families").select("*").eq("year", year).in("name", [from, to]));
+      const src = fams.find(f => f.name === from), dst = fams.find(f => f.name === to);
+      if (dst) chk(await sb.from("families").update({ scouts: (dst.scouts || 0) + (src?.scouts || 0) }).eq("year", year).eq("name", to));
+      else chk(await sb.from("families").insert({ year, name: to, scouts: src?.scouts || 0 }));
+      chk(await sb.from("adults").update({ family_name: to }).eq("year", year).eq("family_name", from));
+      chk(await sb.from("entries").update({ family_name: to }).eq("year", year).eq("family_name", from));
+      chk(await sb.from("families").delete().eq("year", year).eq("name", from));
     },
     async saveSettings(year, s) {
       chk(await sb.from("settings").upsert({ year, in_lieu_rate: s.in_lieu_rate, published_through: s.published_through, family_overrides: s.familyOverrides }));

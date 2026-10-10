@@ -214,10 +214,12 @@
 
   function aFamilies() {
     return `<div class="card"><h2>Families & targets</h2><p class="mute small">Leave override blank to use the rule (100; 60 single registered adult; 25 × remaining quarters if joined mid-year). Overrides publish only the number.</p>
-      <table class="small"><thead><tr><th>Family</th><th class="n">Scouts</th><th class="n">Reg. adults</th><th>Joined in quarter</th><th>Target override</th><th class="n">Published target</th><th class="n">Points</th></tr></thead><tbody>
+      <table class="small"><thead><tr><th>Family</th><th class="n">Scouts</th><th class="n">Reg. adults</th><th>Joined in quarter</th><th>Target override</th><th class="n">Published target</th><th class="n">Points</th><th>Merge into</th></tr></thead><tbody>
       ${st.fams.map(f => `<tr><td><b>${esc(f.name)}</b></td><td class="n">${f.scouts ?? ""}</td><td class="n">${f.registered_adults}</td>
         <td><select data-fam-q="${esc(f.name)}"><option value="">Full year</option>${[2, 3, 4].map(q => `<option ${f.join_quarter == q ? "selected" : ""} value="${q}">Q${q}</option>`).join("")}</select></td>
-        <td><input type="number" min="0" style="width:90px" data-fam-t="${esc(f.name)}" value="${f.target_override ?? ""}"></td><td class="n">${f.target}</td><td class="n">${f.total}</td></tr>`).join("")}</tbody></table></div>`;
+        <td><input type="number" min="0" style="width:90px" data-fam-t="${esc(f.name)}" value="${f.target_override ?? ""}"></td><td class="n">${f.target}</td><td class="n">${f.total}</td>
+        <td><select data-fam-merge="${esc(f.name)}"><option value="">—</option>${st.fams.filter(o => o.name !== f.name).map(o => `<option value="${esc(o.name)}">${esc(o.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table>
+      <p class="small mute">Merge combines two households (e.g. a Scout listed under "Gurney" and a parent under "Gurney Greene"). Adults, Scouts count and every line move across, and the merge is remembered on TroopWebHost re-import.</p></div>`;
   }
 
   function aAdults() {
@@ -360,7 +362,7 @@
           else if (k.kind === "participation") { participation = k.rows; names.push("event participation"); }
         }
         if (unknown.length) say(`Not a recognised TroopWebHost export: ${unknown.join(", ")}`, false);
-        st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg }, participation) } : null;
+        st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg, alias: (st.data.settings.familyOverrides || {}).__familyAlias }, participation) } : null;
         if (!annual) { st.parsed = null; return render(); }
         const people = T420Ingest.parseWorkbook(annual);
         const years = [...new Set(people.map(p => p.year))].sort((a, b) => b - a);
@@ -374,6 +376,17 @@
         return render();
       }
       if (d.famT !== undefined) { await S.updateFamily(st.year, d.famT, { target_override: t.value === "" ? null : +t.value }); say("Target saved."); }
+      else if (d.famMerge !== undefined && t.value) {
+        const from = d.famMerge, to = t.value;
+        if (!confirm(`Merge the ${from} family into ${to}? All adults, Scouts and lines move to ${to}.`)) { t.value = ""; return; }
+        await S.mergeFamily(st.year, from, to);
+        const ov = { ...(st.data.settings.familyOverrides || {}) };
+        const alias = { ...(ov.__familyAlias || {}) };
+        Object.keys(alias).forEach(k => { if (alias[k] === from) alias[k] = to; });   // keep chains flat
+        alias[from] = to; ov.__familyAlias = alias;
+        await S.saveSettings(st.year, { ...st.data.settings, familyOverrides: ov });
+        say(`Merged ${from} into ${to}.`);
+      }
       else if (d.famQ !== undefined) { await S.updateFamily(st.year, d.famQ, { join_quarter: t.value ? +t.value : null }); say("Saved."); }
       else if (d.adReg !== undefined) { await S.updateAdult(st.year, d.adReg, { registered: t.checked }); say("Saved."); }
       else if (d.adYpt !== undefined) { await S.updateAdult(st.year, d.adYpt, { ypt_current: t.value === "" ? null : t.value === "true" }); say("Saved."); }

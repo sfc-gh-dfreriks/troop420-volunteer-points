@@ -39,13 +39,15 @@
 
   // overrides: { "Jane Smith": "Jones" } moves an adult to another household.
   function buildYear(people, year, cfg, overrides = {}) {
+    const alias = overrides.__familyAlias || {};
+    const fam = n => alias[n] || n;
     const inYear = people.filter(p => p.year === year);
     const adultsRaw = inYear.filter(p => /adult/i.test(p.type));
     const scoutCount = {};
-    inYear.filter(p => /scout/i.test(p.type)).forEach(p => { scoutCount[surname(p.name)] = (scoutCount[surname(p.name)] || 0) + 1; });
+    inYear.filter(p => /scout/i.test(p.type)).forEach(p => { const f = fam(surname(p.name)); scoutCount[f] = (scoutCount[f] || 0) + 1; });
 
     const adults = adultsRaw.map(p => ({
-      year, name: display(p.name), family_name: overrides[display(p.name)] || surname(p.name),
+      year, name: display(p.name), family_name: overrides[display(p.name)] || fam(surname(p.name)),
       registered: true, ypt_current: null, _p: p
     }));
 
@@ -140,6 +142,7 @@
     const today = ctx.today || new Date().toISOString().slice(0, 10);
     let match = makeMatcher(ctx.roster.map(a => a.name));
     const famOf = Object.fromEntries(ctx.roster.map(a => [a.name, a.family_name]));
+    const fam = n => (ctx.alias || {})[n] || n;   // committee household merges
     const yearEnd = `${year}-12-31`, yearStart = `${year}-01-01`;
     const out = [], unmatched = new Set(), unmappedPositions = new Set(), unmappedTypes = new Set(), newAdults = [];
     const seen = new Set();
@@ -157,7 +160,7 @@
         const [last, first] = r.Adult.split(",").map(norm);
         if (!last || !first) { unmatched.add(r.Adult); continue; }
         adult = `${first} ${last}`;
-        if (!famOf[adult]) { famOf[adult] = last; newAdults.push({ year, name: adult, family_name: last, registered: true }); }
+        if (!famOf[adult]) { famOf[adult] = fam(last); newAdults.push({ year, name: adult, family_name: fam(last), registered: true }); }
       }
       const start = isoDate(r.Start) || yearStart;
       if (start > yearEnd) continue;
@@ -179,7 +182,7 @@
       const known = makeMatcher([...ctx.roster.map(a => a.name), ...newAdults.map(a => a.name)])(r.Participant);
       if (known) continue;
       const name = `${first} ${last}`;
-      famOf[name] = last; newAdults.push({ year, name, family_name: last, registered: true });
+      famOf[name] = fam(last); newAdults.push({ year, name, family_name: fam(last), registered: true });
     }
     // post-holders / participants added above can also be event leaders - match them on the first import
     if (newAdults.length) match = makeMatcher([...ctx.roster.map(a => a.name), ...newAdults.map(a => a.name)]);
