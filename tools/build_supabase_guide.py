@@ -13,7 +13,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parent.parent
 SITE = "https://sfc-gh-dfreriks.github.io/troop420-volunteer-points/"
 REPO = "https://github.com/sfc-gh-dfreriks/troop420-volunteer-points"
-RED, GREEN, GOLD, GREY = RGBColor(0xBB, 0, 0), RGBColor(0x2B, 0x3D, 0x3A), RGBColor(0xA6, 0x7C, 0x00), RGBColor(0x5F, 0x6B, 0x68)
+RED, GREEN, GOLD, GREY = RGBColor(0xBB, 0, 0), RGBColor(0x2D, 0x3D, 0x3C), RGBColor(0xA6, 0x7C, 0x00), RGBColor(0x5F, 0x6B, 0x68)
 
 doc = Document()
 sec = doc.sections[0]
@@ -94,7 +94,7 @@ def table(rows, widths=None, header=True):
     for i, row in enumerate(rows):
         for j, val in enumerate(row):
             c = t.cell(i, j); c.text = ""; r = c.paragraphs[0].add_run(str(val)); r.font.size = Pt(9.5)
-            if header and i == 0: r.bold = True; r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); shade(c, "2B3D3A")
+            if header and i == 0: r.bold = True; r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); shade(c, "2D3D3C")
             if widths: c.width = Inches(widths[j])
     doc.add_paragraph()
     return t

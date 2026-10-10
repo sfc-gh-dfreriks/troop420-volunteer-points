@@ -1,5 +1,5 @@
 /* Troop 420 / 8420 Bothell branding: Scouting America red band (troop site), emblem green + gold, Lato */
-:root{--navy:#2b3d3a;--red:#bb0000;--gold:#f2c230;--tan:#f2c230;--ink:#222;--mute:#5f6b68;--bg:#f5f5f2;--card:#fff;--ok:#2e7d32;--warn:#a15c00;--line:#e2e4e0}
+:root{--navy:#2d3d3c;--red:#bb0000;--gold:#f4c72b;--tan:#f4c72b;--ink:#222;--mute:#5f6b68;--bg:#f5f5f2;--card:#fff;--ok:#2e7d32;--warn:#a15c00;--line:#e2e4e0}
 *{box-sizing:border-box}body{margin:0;font:15px/1.5 Lato,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
 .top{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding:.7rem 1.5rem;background:var(--red);color:#fff;border-bottom:4px solid var(--gold)}
 .brand{display:flex;gap:1rem;align-items:center}.emblem{width:74px;height:74px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
