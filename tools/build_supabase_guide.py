@@ -163,6 +163,22 @@ bullet("If the dashboard warns that ", ("public_entries", "c"), " is a security 
        "approved rows to the public while the entries table itself stays private.")
 doc.add_page_break()
 
+h("Fast path: test without logins (TEST MODE)")
+callout("Use this to try every feature before setting up committee accounts.",
+        "Do Steps 1 and 2, then the three steps below, and skip Steps 3-6 for now. While test mode is on, anyone with the link can approve, "
+        "import or delete, so use test data only and do not announce the site.", fill="FDE8EA")
+num("In SQL Editor, run the script below (", ("supabase/test_mode_on.sql", "c"), "). It must run after schema.sql.")
+code((ROOT / "supabase/test_mode_on.sql").read_text(), size=8.5)
+num("Do Step 7 (paste the Project URL and key into ", ("config.js", "c"), ") and make sure ", ("TEST_MODE: true", "c"), " is set. The repository ships with it on.")
+num("Reload the site. A red ", ("Test mode", "b"), " banner shows. Click ", ("Committee", "b"), ", type the name you are acting as (or leave it blank), "
+    "click ", ("Open console", "b"), ", then work through Steps 8 and 9.")
+para("Turning test mode off (before real use)", bold=True, color=GREEN)
+num("Run ", ("supabase/test_mode_off.sql", "c"), " below. Uncomment its last line to wipe the test data.")
+code((ROOT / "supabase/test_mode_off.sql").read_text(), size=8.5)
+num("Set ", ("TEST_MODE: false", "c"), " in config.js and commit.")
+num("Do Steps 3-6 (sign-ups off, site URL, logins, admins), then repeat the Step 9 test with real logins.")
+doc.add_page_break()
+
 h("Step 3 - Turn off public sign-ups")
 para("Only committee members should have logins. Families never need one: claims are submitted without signing in.")
 num("Go to ", ("Authentication → Sign In / Providers", "b"), ". In older dashboards this is Authentication → Providers.")
@@ -265,7 +281,8 @@ table([["#", "Who / where", "Do this", "Expect"],
       widths=[0.3, 1.7, 2.4, 2.3])
 
 h("Step 10 - Go-live checklist")
-for t in ["Schema run successfully (Step 2) and all five tables show RLS enabled",
+for t in ["TEST MODE OFF: test_mode_off.sql run and TEST_MODE: false in config.js",
+          "Schema run successfully (Step 2) and all five tables show RLS enabled",
           "Public sign-ups OFF (Step 3)",
           "Every committee member has a login (Step 5) AND an admins row whose adult_name matches the roster (Step 6)",
           "config.js has the Project URL and publishable/anon key, never the secret/service_role key (Step 7)",

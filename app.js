@@ -129,6 +129,10 @@
 
   // ---------------- Admin ----------------
   function vLogin() {
+    const nameField = `<label>Your name (blocks approving your own lines)<input name="adult" list="adultList2"></label><datalist id="adultList2">${st.data.adults.map(a => `<option value="${esc(a.name)}">`).join("")}</datalist>`;
+    if (cfg.TEST_MODE) return `<div class="card" style="max-width:460px"><h2>Committee console (test mode)</h2>
+      <p class="small mute">No login while testing. Pick who you are acting as, or leave it blank. Turn <code>TEST_MODE</code> off before going live.</p>
+      <form id="loginForm">${nameField}<p><button>Open console</button></p></form></div>`;
     return `<div class="card" style="max-width:460px"><h2>Committee sign-in</h2>
       ${S.mode === "demo" ? `<p class="small mute">Demo mode: passphrase is set in <code>config.js</code>. Approvals stay in this browser.</p>` : ""}
       ${st.me?.notAdmin ? `<div class="msg err">${esc(st.me.email)} is signed in but is not on the committee admin list.</div>` : ""}
@@ -330,7 +334,8 @@
 
   (async function boot() {
     await S.init();
-    if (S.mode === "demo") $("#modeBanner").innerHTML = `<div class="banner demo"><b>Demo mode.</b> Sample families, and claims are stored only in this browser. Connect Supabase in <code>config.js</code> to make claims and approvals shared.</div>`;
+    if (S.mode === "demo") $("#modeBanner").innerHTML = `<div class="banner demo"><b>Demo mode${cfg.TEST_MODE ? " · test mode (no login)" : ""}.</b> Sample families, and claims are stored only in this browser. Connect Supabase in <code>config.js</code> to make claims and approvals shared.</div>`;
+    if (cfg.TEST_MODE && S.mode === "live") $("#modeBanner").innerHTML = `<div class="banner test"><b>Test mode.</b> Shared Supabase data, but the Committee console has no login. Anyone with this link can approve or delete. Not for real use yet.</div>`;
     st.me = await S.me(); await fillYears(); await refresh();
     window.addEventListener("hashchange", render);
   })();

@@ -48,7 +48,7 @@
     async init() { this.db(); },
     async me() { return sessionStorage.getItem("t420_admin") ? { email: "demo@local", adult_name: sessionStorage.getItem("t420_admin_name") || "", is_chair: false } : null; },
     async login(_email, pass, adultName) {
-      if (pass !== cfg.DEMO_ADMIN_PASSPHRASE) throw new Error("Wrong passphrase");
+      if (!cfg.TEST_MODE && pass !== cfg.DEMO_ADMIN_PASSPHRASE) throw new Error("Wrong passphrase");
       sessionStorage.setItem("t420_admin", "1"); sessionStorage.setItem("t420_admin_name", adultName || "");
     },
     async logout() { sessionStorage.removeItem("t420_admin"); sessionStorage.removeItem("t420_admin_name"); },
@@ -97,17 +97,23 @@
   // ---------------- SUPABASE ----------------
   let sb;
   const chk = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+  const testMe = () => sessionStorage.getItem("t420_test_admin") != null
+    ? { email: "test-mode", adult_name: sessionStorage.getItem("t420_test_admin"), is_chair: false, test: true } : null;
   const supa = {
     mode: "live",
     async init() { sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY); },
     async me() {
+      if (cfg.TEST_MODE) return testMe();
       const { data } = await sb.auth.getSession(); const email = data.session?.user?.email;
       if (!email) return null;
       const rows = chk(await sb.from("admins").select("*").eq("email", email));
       return rows[0] ? { email, adult_name: rows[0].adult_name, is_chair: rows[0].is_chair } : { email, notAdmin: true };
     },
-    async login(email, password) { chk(await sb.auth.signInWithPassword({ email, password })); },
-    async logout() { await sb.auth.signOut(); },
+    async login(email, password, adultName) {
+      if (cfg.TEST_MODE) { sessionStorage.setItem("t420_test_admin", adultName || ""); return; }
+      chk(await sb.auth.signInWithPassword({ email, password }));
+    },
+    async logout() { sessionStorage.removeItem("t420_test_admin"); if (!cfg.TEST_MODE) await sb.auth.signOut(); },
     async years() { const r = chk(await sb.from("families").select("year")); return [...new Set([cfg.defaultYear, ...r.map(x => x.year)])].sort((a, b) => b - a); },
     async yearData(year, admin) {
       const [families, adults, entries, settings] = await Promise.all([

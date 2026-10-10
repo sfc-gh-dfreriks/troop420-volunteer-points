@@ -6,6 +6,11 @@ window.T420_CONFIG = {
 
   DEMO_ADMIN_PASSPHRASE: "committee", // demo mode only - not security, just a gate
 
+  // TEST_MODE: Supabase connected, but the Committee console opens with just a name -
+  // no Supabase logins or admins rows needed. Pair with supabase/test_mode_on.sql.
+  // Turn OFF (and run supabase/test_mode_off.sql) before real families use the site.
+  TEST_MODE: true,
+
   defaultYear: 2026,
   troopName: "Troop 420",
 
