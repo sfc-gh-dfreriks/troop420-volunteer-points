@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troop 420 · Adult Volunteer Points</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div class="badge">420</div>
+      <div><h1>Troop 420 Volunteer Points</h1><p class="sub">One target per family · published in full · earned when the work is done</p></div>
+    </div>
+    <div class="yearbox"><label>Scouting year <select id="year"></select></label></div>
+  </header>
+  <nav id="nav">
+    <a href="#standings" data-tab="standings">Standings</a>
+    <a href="#claim" data-tab="claim">Log missing credit</a>
+    <a href="#prices" data-tab="prices">Price list</a>
+    <a href="#rules" data-tab="rules">How it works</a>
+    <a href="#admin" data-tab="admin" class="right">Committee</a>
+  </nav>
+  <div id="modeBanner"></div>
+  <main id="view"></main>
+  <footer>Based on the Troop 420 Adult Volunteer Points System (revised proposal). Year runs 1 January – 31 December, closing with recharter.
+    Youth names are never published.</footer>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="rules.js"></script>
+  <script src="ingest.js"></script>
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
