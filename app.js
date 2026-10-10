@@ -340,7 +340,10 @@
         say(`Approved ${ids.length} suggestions.`);
       }
       else if (t.id === "doImport") {
-        const p = st.parsed; await S.importYear(p.built); st.parsed = null; st.year = p.year; await fillYears();
+        const p = st.parsed; await S.importYear(p.built);
+        const sd = (await S.yearData(p.year, true)).settings;
+        await S.saveSettings(p.year, { ...sd, familyOverrides: { ...(sd.familyOverrides || {}), __annualAdults: p.built.adults.map(a => a.name) } });
+        st.parsed = null; st.year = p.year; await fillYears();
         say(`Imported ${p.year}: ${p.built.adults.length} adults, ${p.built.entries.length} TroopWebHost lines.`);
       }
     } catch (e) { say(e.message, false); }
@@ -362,7 +365,9 @@
           else if (k.kind === "participation") { participation = k.rows; names.push("event participation"); }
         }
         if (unknown.length) say(`Not a recognised TroopWebHost export: ${unknown.join(", ")}`, false);
-        st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg, alias: (st.data.settings.familyOverrides || {}).__familyAlias }, participation) } : null;
+        st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg, alias: (st.data.settings.familyOverrides || {}).__familyAlias,
+            annualAdults: (st.data.settings.familyOverrides || {}).__annualAdults
+              || [...new Set(st.data.entries.filter(e => e.source === "twh" && !e.notes).map(e => e.adult_name))] }, participation) } : null;
         if (!annual) { st.parsed = null; return render(); }
         const people = T420Ingest.parseWorkbook(annual);
         const years = [...new Set(people.map(p => p.year))].sort((a, b) => b - a);

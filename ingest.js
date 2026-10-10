@@ -237,7 +237,7 @@
       }, key);
     }
     // Adults missing from the annual summary still earn their nights / service hours, from the per-event rows.
-    const annualAdults = new Set(ctx.roster.map(a => a.name));
+    const annualAdults = new Set(ctx.annualAdults || ctx.roster.map(a => a.name));
     const tot = {};
     for (const r of participation || []) {
       if (!/^y/i.test(r["Adult?"] || "")) continue;
