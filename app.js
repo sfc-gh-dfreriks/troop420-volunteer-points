@@ -334,7 +334,7 @@
         const ctx = { adults: st.data.adults, entries: st.data.entries };
         const ids = st.data.entries.filter(e => e.status === "pending" && e.source === "twh" && !(st.me.adult_name && st.me.adult_name === e.adult_name) && !T420.flags(e, ctx).length).map(e => e.id);
         if (!confirm(`Approve ${ids.length} TroopWebHost suggestions?`)) return;
-        for (const id of ids) await S.review(id, "approved", who());
+        await S.reviewMany(ids, "approved", who());
         say(`Approved ${ids.length} suggestions.`);
       }
       else if (t.id === "doImport") {
