@@ -196,7 +196,7 @@
       ${st.roles ? (() => { const r = st.roles.result; const by = {}; r.entries.forEach(e => { by[e.role_id] = (by[e.role_id] || 0) + 1; });
         return `<h3>Leadership & event leads – ${st.year}</h3>
         <p>${r.entries.length} suggestions (${r.entries.reduce((a, e) => a + e.points, 0)} pts) from ${st.roles.files.join(" + ")}.
-        ${r.newAdults.length ? `${r.newAdults.length} post-holders not in the annual summary will be added to the roster.` : ""}
+        ${r.newAdults.length ? `${r.newAdults.length} adults (post-holders and event participants) not in the annual summary will be added to the roster.` : ""}
         ${r.unmatched ? `${r.unmatched} leader names did not match an adult (usually Scouts) and are ignored.` : ""}</p>
         ${r.unmappedPositions.length || r.unmappedTypes.length ? `<p class="flag">Not mapped in config.js (no points): ${esc([...r.unmappedPositions, ...r.unmappedTypes].join(", "))}</p>` : ""}
         <table class="small"><thead><tr><th>Role</th><th class="n">Lines</th></tr></thead><tbody>${Object.entries(by).map(([k, n]) => `<tr><td>${esc(T420.BY_ID[k]?.name || k)}</td><td class="n">${n}</td></tr>`).join("")}</tbody></table>
