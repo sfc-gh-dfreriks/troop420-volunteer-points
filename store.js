@@ -101,7 +101,7 @@
     ? { email: "test-mode", adult_name: sessionStorage.getItem("t420_test_admin"), is_chair: false, test: true } : null;
   const supa = {
     mode: "live",
-    async init() { sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY); },
+    async init() { sb = window.supabase.createClient(cfg.SUPABASE_URL.trim().replace(/\/(rest\/v1\/?)?$/, ""), cfg.SUPABASE_ANON_KEY.trim()); },
     async me() {
       if (cfg.TEST_MODE) return testMe();
       const { data } = await sb.auth.getSession(); const email = data.session?.user?.email;

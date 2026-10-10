@@ -1,7 +1,7 @@
 // Troop 420 Volunteer Points - site configuration.
 // Leave SUPABASE_URL empty to run in DEMO mode (data lives only in this browser).
 window.T420_CONFIG = {
-  SUPABASE_URL: "https://svaguavmztvtuswlhdle.supabase.co/rest/v1/",       // e.g. "https://abcd1234.supabase.co"
+  SUPABASE_URL: "https://svaguavmztvtuswlhdle.supabase.co",       // e.g. "https://abcd1234.supabase.co"
   SUPABASE_ANON_KEY: "sb_publishable_1OMuXYKPjsiHzbM-mTgFlQ_tWcx3S3p",  // public anon key (safe to publish; RLS protects the data)
 
   DEMO_ADMIN_PASSPHRASE: "committee", // demo mode only - not security, just a gate
