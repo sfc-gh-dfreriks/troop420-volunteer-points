@@ -17,6 +17,7 @@
   }
 
   function tierPill(f) {
+    if (!f.tier && f.met) return `<span class="pill met">Target met</span>`;
     if (!f.tier) return `<span class="mute small">${f.total} of ${f.target}${f.total >= f.target / 2 ? " · halfway" : ""}</span>`;
     return `<span class="pill ${f.tier.name === "Commitment met" ? "met" : esc(f.tier.name)}">${esc(f.tier.name)}</span>`;
   }

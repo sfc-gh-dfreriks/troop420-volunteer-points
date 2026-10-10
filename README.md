@@ -82,3 +82,11 @@ python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
 There is no build step. The vendored libraries are SheetJS (XLS parsing) and supabase-js.
+
+## Previewing an export from the command line
+
+```
+node tools/twh-preview.js "Event Participation Annual Summary <timestamp>.XLS" 2026 [--csv out.csv]
+```
+
+This runs the same ingest and rules code as the site. It prints family totals and targets, and lists families that have Scouts but no adult row. Nothing is uploaded. The Cortex Code skill that documents the export → preview → import workflow is in `skills/troopwebhost-export/SKILL.md`.
