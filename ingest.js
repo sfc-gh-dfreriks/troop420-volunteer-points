@@ -170,7 +170,18 @@
       }, `twh:pos:${year}:${adult}:${roleId}`);
     }
 
-    // post-holders added above can also be event leaders - match them on the first import
+    // Adults who took part in this year's events (Adult? = Y) are an authoritative adult list too.
+    for (const r of participation || []) {
+      if (!/^y/i.test(r["Adult?"] || "")) continue;
+      const d = isoDate(r.Date); if (!d || d.slice(0, 4) !== String(year)) continue;
+      const [last, first] = String(r.Participant || "").split(",").map(norm);
+      if (!last || !first) continue;
+      const known = makeMatcher([...ctx.roster.map(a => a.name), ...newAdults.map(a => a.name)])(r.Participant);
+      if (known) continue;
+      const name = `${first} ${last}`;
+      famOf[name] = last; newAdults.push({ year, name, family_name: last, registered: true });
+    }
+    // post-holders / participants added above can also be event leaders - match them on the first import
     if (newAdults.length) match = makeMatcher([...ctx.roster.map(a => a.name), ...newAdults.map(a => a.name)]);
     for (const r of events || []) {
       const date = isoDate(r.Start);
@@ -190,15 +201,30 @@
     // Attendance credit (45935): High Adventure, summer camp, Wood Badge, PTC, IOLS, adult training.
     const coveredNights = {};
     const rules = (cfg.twhAttendance || []).map(r => ({ ...r, rx: r.name ? new RegExp(r.name, "i") : null }));
+    const byEvent = {};
+    for (const r of participation || []) (byEvent[`${r.Event}|${r.Date}`] = byEvent[`${r.Event}|${r.Date}`] || []).push(r);
     for (const r of participation || []) {
       if (!/^y/i.test(r["Adult?"] || "")) continue;
       const date = isoDate(r.Date);
       if (!date || date.slice(0, 4) !== String(year) || date > today) continue;
       const nights = (parseFloat(r["Camping Nights"]) || 0) + (parseFloat(r["Cabin Camping"]) || 0);
-      const rule = rules.find(x => (!x.eventType || x.eventType === r["Event Type"]) && (!x.rx || x.rx.test(r.Event)) && nights >= (x.minNights || 0));
+      const adult = match(r.Participant); if (!adult) { unmatched.add(r.Participant); continue; }
+      if (/^y/i.test(r["Driver?"] || "") && cfg.twhDrivers) {
+        const last = String(r.Participant).split(",")[0].trim().toLowerCase();
+        const scouts = (byEvent[`${r.Event}|${r.Date}`] || []).filter(y => !/^y/i.test(y["Adult?"] || ""));
+        const others = scouts.filter(y => String(y.Participant).split(",")[0].trim().toLowerCase() !== last).length;
+        const drv = T420.BY_ID[cfg.twhDrivers.role];
+        if (drv && (!cfg.twhDrivers.requireOtherFamiliesScouts || others > 0)) push({
+          year, family_name: famOf[adult], adult_name: adult, role_id: drv.id,
+          contribution: `${drv.name} - drove for "${r.Event}" (${r["Event Type"] || ""}, ${others} Scouts from other families attended, TroopWebHost)`.replace("(, ", "("),
+          band: drv.pts, points: drv.pts, work_date: date, source: "twh", status: "pending"
+        }, `twh:drv:${date}:${r.Event}:${adult}`);
+      }
+      const rule = rules.find(x => (!x.eventType || x.eventType === r["Event Type"]) && (!x.rx || x.rx.test(r.Event))
+        && nights >= (x.minNights || 0) && (x.maxNights == null || nights <= x.maxNights));
       if (!rule) continue;
       const role = T420.BY_ID[rule.role]; if (!role) continue;
-      const adult = match(r.Participant); if (!adult) { unmatched.add(r.Participant); continue; }
+      if (seen.has(`twh:lead:${date}:${r.Event}:${adult}:${role.id}`)) continue;   // already credited as the leader
       if (rule.coversNights && nights) coveredNights[adult] = (coveredNights[adult] || 0) + nights;
       const key = role.kind === "post" ? `twh:att:${year}:${adult}:${role.id}` : `twh:att:${date}:${r.Event}:${adult}:${role.id}`;
       push({

@@ -62,8 +62,22 @@ window.T420_CONFIG = {
     { role: "wood_badge", name: "wood ?badge", coversNights: true },
     { role: "ptc", name: "philmont training center|\\bPTC\\b", coversNights: true },
     { role: "iols", name: "IOLS|outdoor leader skills", coversNights: true },
-    { role: "position_training", eventType: "Training", name: "adult training|wilderness first aid|training conference|basic leader|SYT|ILST trainer", coversNights: false }
+    { role: "position_training", eventType: "Training", name: "adult training|wilderness first aid|training conference|basic leader|SYT|ILST trainer", coversNights: false },
+    // Adult service at shorter events (each row = one adult at one event)
+    { role: "board_of_review", eventType: "Board of Review" },
+    { role: "committee_meeting", eventType: "Committee Meeting" },          // 30/yr cap; flagged for post-holders
+    { role: "fundraiser_shift", eventType: "Fundraiser" },
+    { role: "fundraiser_shift", eventType: "Tree Lot Fundraiser" },
+    { role: "recruiting_night", eventType: "Recruiting Event" },
+    { role: "day_campout", eventType: "Hike", maxNights: 0 },
+    { role: "day_campout", eventType: "Outing / Field Trip", maxNights: 0 },
+    { role: "day_campout", eventType: "Cycling", maxNights: 0 }
+    // Campouts: credited from camping nights. Community service / conservation: from service hours.
+    // Troop & patrol meetings, Courts of Honor (attending), SM conferences: not service.
   ],
+  // Driver?=Y in 45935 -> "Driver for Scouts other than your own", only when Scouts from other
+  // families attended the event (own Scouts = same surname). Youth names are used in memory only.
+  twhDrivers: { role: "driver_other", requireOtherFamiliesScouts: true },
   twhEventLeadTypes: {
     "Community Service": "service_lead",
     "Conservation-related Service Project": "service_lead",
