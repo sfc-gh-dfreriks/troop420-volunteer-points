@@ -108,7 +108,7 @@ def check(text):
 logo = ROOT / "assets/troop420-emblem.png"
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p.add_run().add_picture(str(logo), width=Inches(1.6))
-p = para("TROOP 420 · TROOP 8420 · BOTHELL, WASHINGTON", bold=True, color=GOLD, size=10); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+p = para("TROOP 420 BOTHELL", bold=True, color=GOLD, size=10); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p = para("Adult Volunteer Points", bold=True, color=RED, size=26); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p = para("Supabase setup guide: from demo mode to a live, shared system", bold=True, color=GREEN, size=14); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p = para("Everything needed is inside this document, including the complete database script.", italic=True, color=GREY); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
