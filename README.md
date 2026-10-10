@@ -46,6 +46,13 @@ The **Event Participation Annual Summary** export (`.XLS`) is a per-person annua
 
 The conversion ratios live in `config.js → twh`. They are committee policy, so adjust them there.
 
+**Leadership and event-lead credit.** Also upload **Adult Leaders By Position** (report 54040) and **Export Events To Excel** (report 53104). Pull both with `python3 twh_export.py --login --preset volunteer-points` from [troop420-tools](https://github.com/sfc-gh-dfreriks/troop420-tools).
+
+- Positions such as Assistant Scoutmaster, Treasurer or Committee Chair earn post credit.
+- An adult named in an event's **Leaders** column earns lead credit for that event's type. For example, leading a Community Service food drive earns the service project lead rate (25).
+- Both kinds of credit arrive as **pending suggestions** in the approval queue. The committee confirms them, one at a time or with the bulk button for lines that have no flags. Re-importing never duplicates a suggestion and never changes a decision already made.
+- The mappings are in `config.js` → `twhPositions` and `twhEventLeadTypes`.
+
 Everything that TroopWebHost does not record comes in through **Log missing credit** and committee approval. That includes committee posts, boards of review, driving other Scouts, grubmaster, merit badge counselling and training.
 
 ## Modes

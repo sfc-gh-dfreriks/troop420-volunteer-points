@@ -155,11 +155,14 @@
   function aQueue() {
     const ctx = { adults: st.data.adults, entries: st.data.entries };
     const rows = st.data.entries.filter(e => e.status !== "approved" || e.source === "claim").sort((a, b) => (a.status === "pending" ? -1 : 1) - (b.status === "pending" ? -1 : 1) || String(b.created_at || "").localeCompare(String(a.created_at || "")));
-    return `<div class="card"><h2>Claims</h2><table class="small"><thead><tr><th>Status</th><th>Adult / family</th><th>Contribution</th><th>Date</th><th class="n">Pts</th><th>Checks</th><th></th></tr></thead><tbody>
+    const bulk = rows.filter(e => e.status === "pending" && e.source === "twh" && !(st.me.adult_name && st.me.adult_name === e.adult_name) && !T420.flags(e, ctx).length);
+    return `<div class="card"><h2>Claims</h2>
+      ${bulk.length ? `<p><button class="ok" id="bulkTwh">Approve ${bulk.length} TroopWebHost suggestions with no flags</button>
+        <span class="small mute">Leaves flagged lines and your own lines for individual review.</span></p>` : ""}<table class="small"><thead><tr><th>Status</th><th>Adult / family</th><th>Contribution</th><th>Date</th><th class="n">Pts</th><th>Checks</th><th></th></tr></thead><tbody>
       ${rows.map(e => {
         const fl = T420.flags(e, ctx), self = st.me.adult_name && st.me.adult_name === e.adult_name;
         return `<tr><td><span class="pill ${e.status}">${e.status}</span></td><td><b>${esc(e.adult_name)}</b><br><span class="mute">${esc(e.family_name)}${e.submitter_email ? " · " + esc(e.submitter_email) : ""}</span></td>
-          <td>${esc(e.contribution)}${e.notes ? `<br><span class="mute">${esc(e.notes)}</span>` : ""}${e.review_note ? `<br><i>Committee: ${esc(e.review_note)}</i>` : ""}</td>
+          <td>${esc(e.contribution)}${e.notes && !e.notes.startsWith("twh:") ? `<br><span class="mute">${esc(e.notes)}</span>` : ""}${e.source === "twh" ? ' <span class="pill twh">TroopWebHost suggestion</span>' : ""}${e.review_note ? `<br><i>Committee: ${esc(e.review_note)}</i>` : ""}</td>
           <td>${fmtDate(e.work_date)}</td><td class="n">${e.points}</td><td>${fl.map(x => `<div class="flag">⚑ ${esc(x)}</div>`).join("") || '<span class="mute">none</span>'}</td>
           <td>${e.status === "pending" ? (self ? `<span class="mute">Your own line – another member must sign</span>` :
             `<button class="ok sm" data-approve="${e.id}">Approve</button> <button class="red sm" data-reject="${e.id}">Reject</button>`) :
@@ -183,7 +186,20 @@
     return `<div class="card"><h2>Import TroopWebHost export</h2>
       <p class="mute small">Reports → <i>Event Participation Annual Summary</i> → export as XLS. The file is read in your browser; only Adult rows become points, and Scout rows only count Scouts per family.
       Re-importing a year replaces that year's TroopWebHost lines and keeps approved claims, targets and household moves.</p>
-      <input type="file" id="xls" accept=".xls,.xlsx,.csv">
+      <p class="small"><b>Choose one or more files</b> – each is recognised automatically:</p>
+      <ul class="small"><li><b>Event Participation Annual Summary</b> (XLS) – camping nights and service hours (auto-approved)</li>
+        <li><b>Adult Leaders By Position</b> (54040) – posts such as Assistant Scoutmaster, Treasurer, Committee Chair</li>
+        <li><b>Export Events To Excel</b> (53104) – event leaders, e.g. who led the food drive</li></ul>
+      <p class="small mute">Positions and event leaders become <b>pending suggestions</b> in the Approval queue for the committee to confirm. Import the annual summary first so leaders can be matched to adults.</p>
+      <input type="file" id="xls" accept=".xls,.xlsx,.csv" multiple>
+      ${st.roles ? (() => { const r = st.roles.result; const by = {}; r.entries.forEach(e => { by[e.role_id] = (by[e.role_id] || 0) + 1; });
+        return `<h3>Leadership & event leads – ${st.year}</h3>
+        <p>${r.entries.length} suggestions (${r.entries.reduce((a, e) => a + e.points, 0)} pts) from ${st.roles.files.join(" + ")}.
+        ${r.newAdults.length ? `${r.newAdults.length} post-holders not in the annual summary will be added to the roster.` : ""}
+        ${r.unmatched ? `${r.unmatched} leader names did not match an adult (usually Scouts) and are ignored.` : ""}</p>
+        ${r.unmappedPositions.length || r.unmappedTypes.length ? `<p class="flag">Not mapped in config.js (no points): ${esc([...r.unmappedPositions, ...r.unmappedTypes].join(", "))}</p>` : ""}
+        <table class="small"><thead><tr><th>Role</th><th class="n">Lines</th></tr></thead><tbody>${Object.entries(by).map(([k, n]) => `<tr><td>${esc(T420.BY_ID[k]?.name || k)}</td><td class="n">${n}</td></tr>`).join("")}</tbody></table>
+        <button id="doRoles">Add ${r.entries.length} suggestions to the approval queue</button>`; })() : ""}
       ${p ? `<h3>Preview – ${p.year}</h3>
         <p>${p.built.families.length} families · ${p.built.adults.length} adults · ${p.built.entries.length} point lines (${p.built.entries.reduce((s, e) => s + e.points, 0)} pts).
         Years in file: <select id="impYear">${p.built.years.map(y => `<option ${y === p.year ? "selected" : ""}>${y}</option>`).join("")}</select></p>
@@ -275,7 +291,7 @@
   });
 
   document.addEventListener("click", async ev => {
-    const t = ev.target.closest("[data-fam],[data-atab],[data-approve],[data-reject],[data-reopen],[data-del],#logout,#doImport,#csv,#reset,[data-prefill]");
+    const t = ev.target.closest("[data-fam],[data-atab],[data-approve],[data-reject],[data-reopen],[data-del],#logout,#doImport,#doRoles,#bulkTwh,#csv,#reset,[data-prefill]");
     if (!t) return;
     const who = () => st.me.adult_name || st.me.email;
     try {
@@ -289,6 +305,17 @@
       else if (t.id === "logout") { await S.logout(); st.me = null; }
       else if (t.id === "csv") { csv(); return; }
       else if (t.id === "reset") { if (!confirm("Reset all demo data in this browser?")) return; await S.reset(); }
+      else if (t.id === "doRoles") {
+        const n = await S.importRoles(st.year, st.roles.result); st.roles = null; st.adminTab = "queue";
+        say(`${n} new TroopWebHost suggestions added to the approval queue.`);
+      }
+      else if (t.id === "bulkTwh") {
+        const ctx = { adults: st.data.adults, entries: st.data.entries };
+        const ids = st.data.entries.filter(e => e.status === "pending" && e.source === "twh" && !(st.me.adult_name && st.me.adult_name === e.adult_name) && !T420.flags(e, ctx).length).map(e => e.id);
+        if (!confirm(`Approve ${ids.length} TroopWebHost suggestions?`)) return;
+        for (const id of ids) await S.review(id, "approved", who());
+        say(`Approved ${ids.length} suggestions.`);
+      }
       else if (t.id === "doImport") {
         const p = st.parsed; await S.importYear(p.built); st.parsed = null; st.year = p.year; await fillYears();
         say(`Imported ${p.year}: ${p.built.adults.length} adults, ${p.built.entries.length} TroopWebHost lines.`);
@@ -301,8 +328,19 @@
     const t = ev.target, d = t.dataset;
     try {
       if (t.id === "year") { st.year = +t.value; return refresh(); }
-      if (t.id === "xls" && t.files[0]) {
-        const people = T420Ingest.parseWorkbook(await t.files[0].arrayBuffer());
+      if (t.id === "xls" && t.files.length) {
+        let annual = null, positions = null, events = null; const names = [], unknown = [];
+        for (const f of t.files) {
+          const buf = await f.arrayBuffer(), k = T420Ingest.sniff(buf);
+          if (!k) unknown.push(f.name);
+          else if (k.kind === "annual") annual = buf;
+          else if (k.kind === "positions") { positions = k.rows; names.push("positions"); }
+          else if (k.kind === "events") { events = k.rows; names.push("event leaders"); }
+        }
+        if (unknown.length) say(`Not a recognised TroopWebHost export: ${unknown.join(", ")}`, false);
+        st.roles = positions || events ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg }) } : null;
+        if (!annual) { st.parsed = null; return render(); }
+        const people = T420Ingest.parseWorkbook(annual);
         const years = [...new Set(people.map(p => p.year))].sort((a, b) => b - a);
         const year = years.includes(st.year) ? st.year : years[0];
         st.parsed = { people, year, built: T420Ingest.buildYear(people, year, cfg.twh, (await S.yearData(year, true)).settings.familyOverrides || {}) };

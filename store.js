@@ -88,8 +88,19 @@
         year: y, name: f.name, scouts: f.scouts, target_override: oldF[f.name]?.target_override ?? null, join_quarter: oldF[f.name]?.join_quarter ?? null })));
       db.adults = db.adults.filter(a => a.year !== y).concat(b.adults.map(a => ({
         ...a, registered: oldA[a.name]?.registered ?? true, ypt_current: oldA[a.name]?.ypt_current ?? null })));
-      db.entries = db.entries.filter(e => !(e.year === y && e.source === "twh")).concat(b.entries.map(e => ({ ...e, id: db.nextId++ })));
+      db.entries = db.entries.filter(e => !(e.year === y && e.source === "twh" && !e.notes)).concat(b.entries.map(e => ({ ...e, id: db.nextId++ })));
       save(db);
+    },
+    async importRoles(year, r) {
+      const db = this.db();
+      for (const a of r.newAdults) {
+        if (!db.adults.some(x => x.year === year && x.name === a.name)) db.adults.push({ ...a, ypt_current: null });
+        if (!db.families.some(f => f.year === year && f.name === a.family_name)) db.families.push({ year, name: a.family_name, scouts: 0, target_override: null, join_quarter: null });
+      }
+      const have = new Set(db.entries.filter(e => e.year === year && e.notes).map(e => e.notes));
+      const fresh = r.entries.filter(e => !have.has(e.notes));
+      fresh.forEach(e => db.entries.push({ ...e, id: db.nextId++, created_at: new Date().toISOString() }));
+      save(db); return fresh.length;
     },
     async reset() { localStorage.removeItem(KEY); }
   };
@@ -145,8 +156,18 @@
       const y = b.year;
       chk(await sb.from("families").upsert(b.families.map(f => ({ year: y, name: f.name, scouts: f.scouts })), { onConflict: "year,name" }));
       chk(await sb.from("adults").upsert(b.adults.map(a => ({ year: y, name: a.name, family_name: a.family_name })), { onConflict: "year,name" }));
-      chk(await sb.from("entries").delete().eq("year", y).eq("source", "twh"));
+      chk(await sb.from("entries").delete().eq("year", y).eq("source", "twh").is("notes", null));
       if (b.entries.length) chk(await sb.from("entries").insert(b.entries));
+    },
+    async importRoles(year, r) {
+      if (r.newAdults.length) {
+        chk(await sb.from("families").upsert([...new Set(r.newAdults.map(a => a.family_name))].map(name => ({ year, name })), { onConflict: "year,name", ignoreDuplicates: true }));
+        chk(await sb.from("adults").upsert(r.newAdults, { onConflict: "year,name", ignoreDuplicates: true }));
+      }
+      const have = new Set(chk(await sb.from("entries").select("notes").eq("year", year).like("notes", "twh:%")).map(x => x.notes));
+      const fresh = r.entries.filter(e => !have.has(e.notes));
+      if (fresh.length) chk(await sb.from("entries").insert(fresh));
+      return fresh.length;
     }
   };
 

@@ -22,5 +22,52 @@ window.T420_CONFIG = {
     serviceHoursPerCredit: 3,       // every 3 service hours = one service volunteer credit (10)
     includeConservationHours: true, // conservation hours add to service hours
     overnightRequiresRegistration: true
+  },
+
+  // Leadership + event-lead credit from two more TroopWebHost exports (troop420-tools):
+  //   54040 Membership > Troop Directories > Adult Leaders By Position  (Troop, Position, Adult, Start)
+  //   53104 Calendar > Export Events To Excel                          (Type, Event, Start, Leaders, ...)
+  // These become PENDING suggestions in the approval queue - the committee confirms each one.
+  // Values are role ids from rules.js; null = no points. Unknown positions/types are listed in the preview.
+  twhPositions: {
+    "Scoutmaster": "scoutmaster",
+    "Committee Chairman": "committee_chair", "Committee Chair": "committee_chair",
+    "Assistant Scoutmaster": "asm_active",           // committee checks "active" (attends most outings)
+    "Treasurer": "treasurer",
+    "Advancement Coordinator": "advancement_chair", "Advancement Chair": "advancement_chair",
+    "Fund Raising Coordinator": "fundraising_chair",
+    "Membership Coordinator": "membership_chair",
+    "Secretary": "secretary",
+    "Webmaster": "communications",
+    "Medical Forms Coordinator": "medical_forms",
+    "Training Coordinator": "training_coord",
+    "Outdoor Activities Coordinator": "program_outdoor_chair",
+    "Quartermaster": "equipment_chair", "Equipment Coordinator": "equipment_chair",
+    "Chaplain": "chaplain",
+    "Merit Badge Counselor": "register_mbc",         // only if registered during the year
+    "IOLS Trained": "iols",                          // only if completed during the year
+    "Committee Member": null, "Chartered organization representative": null, "Unit Commissioner": null,
+    "Unit College Scout Reserve": null, "BUMC Secretary": null,
+    "Board of Review Coordinator": null              // no line in the points system; boards are claimed per board
+  },
+  twhOnlyIfStartedInYear: ["register_mbc", "iols"],
+  twhEventLeadTypes: {
+    "Community Service": "service_lead",
+    "Conservation-related Service Project": "service_lead",
+    "Troop Service Day": "service_lead",
+    "Fundraiser": "fundraiser_lead",
+    "Tree Lot Fundraiser": "fundraiser_shift",
+    "Court of Honor": "coh_coord", "Eagle Court of Honor": "coh_coord",
+    "Merit Badge Clinic": "mb_counselling", "MB Day / Weekend": "mb_counselling",
+    "Recruiting Event": "recruiting_night",
+    "Board of Review": "board_of_review",
+    "Hike": "day_campout", "Outing / Field Trip": "day_campout", "Cycling": "day_campout",
+    // Campouts / treks: no lead line - nights already earn overnight credit (no double counting).
+    "Campout": null, "High Adventure Trek": null, "Training / Campout": null, "Trek Training": null,
+    // Meetings, conferences, training and calendar markers: no lead points.
+    "Troop Meeting": null, "Patrol Meeting": null, "Committee Meeting": null, "SM Conference": null,
+    "SPL/ASPL Biweekly Meeting": null, "OA": null, "Training": null, "Holiday": null, "Other": null,
+    "Trail to Eagle": null, "Advancement Deadline": null, "Medical Forms Review": null,
+    "Setup / Teardown": null, "Tree recycle": null
   }
 };

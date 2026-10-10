@@ -79,5 +79,113 @@
     return { year, families, adults, entries, years: [...new Set(people.map(p => p.year))].sort((a, b) => b - a) };
   }
 
-  window.T420Ingest = { parseWorkbook, buildYear };
+  // ---------- Leadership positions (54040) + event leaders (53104) ----------
+  function readRows(arrayBuffer) {
+    // TroopWebHost CSV exports are UTF-8 (with BOM); binary XLS/XLSX start with an OLE/zip signature.
+    const b = new Uint8Array(arrayBuffer.slice(0, 4));
+    const binary = (b[0] === 0xd0 && b[1] === 0xcf) || (b[0] === 0x50 && b[1] === 0x4b);
+    const wb = binary ? XLSX.read(arrayBuffer, { type: "array" })
+      : XLSX.read(new TextDecoder("utf-8").decode(arrayBuffer).replace(/^\uFEFF/, ""), { type: "string" });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
+  }
+
+  // Which TroopWebHost export is this? Returns {kind, rows(objects)} or null.
+  function sniff(arrayBuffer) {
+    const rows = readRows(arrayBuffer);
+    const h = rows.findIndex(r => r.map(norm).includes("Name") || r.map(norm).includes("Adult") || r.map(norm).includes("Event"));
+    if (h < 0) return null;
+    const head = rows[h].map(c => norm(c).replace(/^\uFEFF/, ""));
+    const objs = rows.slice(h + 1).map(r => Object.fromEntries(head.map((k, i) => [k, norm(r[i])])));
+    if (head.includes("Position") && head.includes("Adult")) return { kind: "positions", rows: objs };
+    if (head.includes("Leaders") && head.includes("Event") && head.includes("Type")) return { kind: "events", rows: objs };
+    if (head.includes("Year") && head.includes("Type") && head.includes("Name")) return { kind: "annual" };
+    return null;
+  }
+
+  // MM/DD/YY[ HH:MM AM] or MM/DD/YYYY -> YYYY-MM-DD
+  function isoDate(s) {
+    const m = String(s || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (!m) return null;
+    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return `${y}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  }
+
+  // Match "Matt Shafer", "Shafer, Matt", "Christy Lynn Freriks" to roster names ("Matthew Shafer").
+  function makeMatcher(rosterNames) {
+    const roster = rosterNames.map(n => {
+      const parts = n.toLowerCase().split(/\s+/);
+      return { name: n, first: parts[0], last: parts[parts.length - 1] };
+    });
+    const firstOk = (a, b) => a === b || (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a)));
+    return raw => {
+      let s = norm(raw);
+      if (s.includes(",")) { const [l, f] = s.split(",").map(norm); s = `${f} ${l}`; }
+      const parts = s.toLowerCase().replace(/[^a-z\s'-]/g, "").split(/\s+/).filter(Boolean);
+      if (parts.length < 2) return null;
+      const first = parts[0], last = parts[parts.length - 1];
+      const hits = roster.filter(r => r.last === last && firstOk(r.first, first));
+      return hits.length === 1 ? hits[0].name : null;
+    };
+  }
+
+  // "Matthew ShaferJudy Donnelly" -> ["Matthew Shafer", "Judy Donnelly"]
+  const splitLeaders = s => norm(s).split(/(?<=[a-z])(?=[A-Z][a-z]+\s)|\s*[;,\n]\s*/).map(norm).filter(Boolean);
+
+  // ctx: { year, roster: [{name, family_name}], cfg, today }
+  function buildRoles(positions, events, ctx) {
+    const { year, cfg } = ctx;
+    const today = ctx.today || new Date().toISOString().slice(0, 10);
+    let match = makeMatcher(ctx.roster.map(a => a.name));
+    const famOf = Object.fromEntries(ctx.roster.map(a => [a.name, a.family_name]));
+    const yearEnd = `${year}-12-31`, yearStart = `${year}-01-01`;
+    const out = [], unmatched = new Set(), unmappedPositions = new Set(), unmappedTypes = new Set(), newAdults = [];
+    const seen = new Set();
+    const push = (e, key) => { if (seen.has(key)) return; seen.add(key); out.push({ ...e, notes: key }); };
+
+    for (const r of positions || []) {
+      const pos = r.Position; if (!pos) continue;
+      if (!(pos in cfg.twhPositions)) { unmappedPositions.add(pos); continue; }
+      const roleId = cfg.twhPositions[pos]; if (!roleId) continue;
+      const role = T420.BY_ID[roleId]; if (!role) { unmappedPositions.add(pos); continue; }
+      let adult = match(r.Adult);
+      if (!adult) {
+        // The positions report is an authoritative adult list: post-holders who logged no
+        // event participation are added to the roster (family = surname, movable later).
+        const [last, first] = r.Adult.split(",").map(norm);
+        if (!last || !first) { unmatched.add(r.Adult); continue; }
+        adult = `${first} ${last}`;
+        if (!famOf[adult]) { famOf[adult] = last; newAdults.push({ year, name: adult, family_name: last, registered: true }); }
+      }
+      const start = isoDate(r.Start) || yearStart;
+      if (start > yearEnd) continue;
+      if (cfg.twhOnlyIfStartedInYear.includes(roleId) && start < yearStart) continue;
+      push({
+        year, family_name: famOf[adult], adult_name: adult, role_id: roleId,
+        contribution: `${role.name} - TroopWebHost position "${pos}" since ${r.Start || "n/a"}`,
+        band: role.pts, points: role.pts, work_date: start < yearStart ? yearStart : start,
+        source: "twh", status: "pending"
+      }, `twh:pos:${year}:${adult}:${roleId}`);
+    }
+
+    // post-holders added above can also be event leaders - match them on the first import
+    if (newAdults.length) match = makeMatcher([...ctx.roster.map(a => a.name), ...newAdults.map(a => a.name)]);
+    for (const r of events || []) {
+      const date = isoDate(r.Start);
+      if (!date || date.slice(0, 4) !== String(year) || date > today || !r.Leaders) continue;
+      if (!(r.Type in cfg.twhEventLeadTypes)) { if (r.Type) unmappedTypes.add(r.Type); continue; }
+      if (!cfg.twhEventLeadTypes[r.Type]) continue;
+      const role = T420.BY_ID[cfg.twhEventLeadTypes[r.Type]];
+      for (const who of splitLeaders(r.Leaders)) {
+        const adult = match(who); if (!adult) { unmatched.add(who); continue; }   // youth leaders land here, never stored
+        push({
+          year, family_name: famOf[adult], adult_name: adult, role_id: role.id,
+          contribution: `${role.name} - led "${r.Event}" (${r.Type}, TroopWebHost)`,
+          band: role.pts, points: role.pts, work_date: date, source: "twh", status: "pending"
+        }, `twh:lead:${date}:${r.Event}:${adult}:${role.id}`);
+      }
+    }
+    return { entries: out, newAdults, unmatched: [...unmatched].length, unmappedPositions: [...unmappedPositions], unmappedTypes: [...unmappedTypes] };
+  }
+
+  window.T420Ingest = { parseWorkbook, buildYear, sniff, buildRoles, splitLeaders, isoDate };
 })();
