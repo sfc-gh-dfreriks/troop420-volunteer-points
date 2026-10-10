@@ -90,3 +90,7 @@ node tools/twh-preview.js "Event Participation Annual Summary <timestamp>.XLS" 2
 ```
 
 This runs the same ingest and rules code as the site. It prints family totals and targets, and lists families that have Scouts but no adult row. Nothing is uploaded. The Cortex Code skill that documents the export → preview → import workflow is in `skills/troopwebhost-export/SKILL.md`.
+
+## Supabase setup guide
+
+A step-by-step Word guide that includes the complete `schema.sql` is in `docs/Troop420_Supabase_Setup_Guide.docx`. To regenerate it after editing the schema, run `python3 tools/build_supabase_guide.py`.
