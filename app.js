@@ -190,7 +190,14 @@
       <ul class="small"><li><b>Event Participation Annual Summary</b> (XLS) – camping nights and service hours (auto-approved)</li>
         <li><b>Adult Leaders By Position</b> (54040) – posts such as Assistant Scoutmaster, Treasurer, Committee Chair</li>
         <li><b>Export Events To Excel</b> (53104) – event leaders, e.g. who led the food drive</li>
-        <li><b>Export Event Participation To Excel</b> (45935) – who attended High Adventure, summer camp, Wood Badge, PTC and other adult training</li></ul>
+        <li><b>Export Event Participation To Excel</b> (45935) – who attended High Adventure, summer camp, Wood Badge, PTC and other adult training</li>
+        <li><b>Adult Involvement</b> (57107) – which adults share a Scout, to join households with different surnames</li></ul>
+      ${st.households ? `<h3>Households from TroopWebHost (adults who share a Scout)</h3>
+        ${st.households.length ? `<table class="small"><thead><tr><th></th><th>Family name</th><th>Combines</th><th>Adults</th></tr></thead><tbody>
+        ${st.households.map((h, i) => `<tr><td><input type="checkbox" data-hh="${i}" ${h.checked ? "checked" : ""}></td><td><input data-hh-name="${i}" value="${esc(h.name)}" style="width:190px"></td>
+          <td>${esc(h.families.join(" + "))}${h.note ? `<div class="flag">⚑ ${esc(h.note)}</div>` : ""}</td><td>${esc(h.adults.join(", "))}</td></tr>`).join("")}</tbody></table>
+        <p><button id="doHouseholds">Merge ticked households</button> <span class="small mute">Lines and Scout counts move to the new family name, and the merge is remembered on re-import.</span></p>`
+        : `<p class="mute">Every household with a shared Scout is already one family.</p>`}` : ""}
       <p class="small mute">Positions and event leaders become <b>pending suggestions</b> in the Approval queue for the committee to confirm. Import the annual summary first so leaders can be matched to adults.</p>
       <input type="file" id="xls" accept=".xls,.xlsx,.csv" multiple>
       ${st.roles ? (() => { const r = st.roles.result; const by = {}; r.entries.forEach(e => { by[e.role_id] = (by[e.role_id] || 0) + 1; });
@@ -295,7 +302,7 @@
   });
 
   document.addEventListener("click", async ev => {
-    const t = ev.target.closest("[data-fam],[data-atab],[data-approve],[data-reject],[data-reopen],[data-del],#logout,#doImport,#doRoles,#bulkTwh,#csv,#reset,[data-prefill]");
+    const t = ev.target.closest("[data-fam],[data-atab],[data-approve],[data-reject],[data-reopen],[data-del],#logout,#doImport,#doRoles,#bulkTwh,#doHouseholds,#csv,#reset,[data-prefill]");
     if (!t) return;
     const who = () => st.me.adult_name || st.me.email;
     try {
@@ -332,6 +339,21 @@
         st.roles = null; st.adminTab = "queue";
         say(`${n} new TroopWebHost suggestions added to the approval queue.${adjusted ? ` ${adjusted} overnight lines adjusted so week-long nights are not counted twice.` : ""}`);
       }
+      else if (t.id === "doHouseholds") {
+        const picks = st.households.map((h, i) => ({ ...h, name: (document.querySelector(`[data-hh-name="${i}"]`)?.value || h.name).trim(),
+          on: document.querySelector(`[data-hh="${i}"]`)?.checked })).filter(h => h.on && h.name);
+        if (!picks.length || !confirm(`Merge ${picks.length} households?`)) return;
+        const ov = { ...(st.data.settings.familyOverrides || {}) }, alias = { ...(ov.__familyAlias || {}) };
+        for (const h of picks) for (const f of h.families) {
+          if (f === h.name) continue;
+          await S.mergeFamily(st.year, f, h.name);
+          Object.keys(alias).forEach(k => { if (alias[k] === f) alias[k] = h.name; });
+          alias[f] = h.name;
+        }
+        ov.__familyAlias = alias; await S.saveSettings(st.year, { ...st.data.settings, familyOverrides: ov });
+        st.households = null; st.adminTab = "families";
+        say(`Merged ${picks.length} households: ${picks.map(h => h.name).join(", ")}.`);
+      }
       else if (t.id === "bulkTwh") {
         const ctx = { adults: st.data.adults, entries: st.data.entries };
         const ids = st.data.entries.filter(e => e.status === "pending" && e.source === "twh" && !(st.me.adult_name && st.me.adult_name === e.adult_name) && !T420.flags(e, ctx).length).map(e => e.id);
@@ -363,7 +385,9 @@
           else if (k.kind === "positions") { positions = k.rows; names.push("positions"); }
           else if (k.kind === "events") { events = k.rows; names.push("event leaders"); }
           else if (k.kind === "participation") { participation = k.rows; names.push("event participation"); }
+          else if (k.kind === "involvement") st.households = T420Ingest.households(k.rows, st.data.adults);
         }
+        if (!annual && !positions && !events && !participation && st.households) return render();
         if (unknown.length) say(`Not a recognised TroopWebHost export: ${unknown.join(", ")}`, false);
         st.roles = positions || events || participation ? { files: names, result: T420Ingest.buildRoles(positions, events, { year: st.year, roster: st.data.adults, cfg, alias: (st.data.settings.familyOverrides || {}).__familyAlias,
             annualAdults: (st.data.settings.familyOverrides || {}).__annualAdults

@@ -89,7 +89,7 @@
     const b = new Uint8Array(arrayBuffer.slice(0, 4));
     const binary = (b[0] === 0xd0 && b[1] === 0xcf) || (b[0] === 0x50 && b[1] === 0x4b);
     const wb = binary ? XLSX.read(arrayBuffer, { type: "array" })
-      : XLSX.read(new TextDecoder("utf-8").decode(arrayBuffer).replace(/^\uFEFF/, ""), { type: "string" });
+      : XLSX.read(new TextDecoder("utf-8").decode(arrayBuffer).replace(/^\uFEFF/, ""), { type: "string", FS: "," });
     return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
   }
 
@@ -101,6 +101,7 @@
     const head = rows[h].map(c => norm(c).replace(/^\uFEFF/, ""));
     const objs = rows.slice(h + 1).map(r => Object.fromEntries(head.map((k, i) => [k, norm(r[i])])));
     if (head.includes("Participant") && head.includes("Adult?")) return { kind: "participation", rows: objs };
+    if (head.includes("Name") && head.includes("Scouts") && head.includes("Leadership")) return { kind: "involvement", rows: objs };
     if (head.includes("Position") && head.includes("Adult")) return { kind: "positions", rows: objs };
     if (head.includes("Leaders") && head.includes("Event") && head.includes("Type")) return { kind: "events", rows: objs };
     if (head.includes("Year") && head.includes("Type") && head.includes("Name")) return { kind: "annual" };
@@ -260,5 +261,39 @@
     return { entries: out, newAdults, coveredNights, unmatched: [...unmatched].length, unmappedPositions: [...unmappedPositions], unmappedTypes: [...unmappedTypes] };
   }
 
-  window.T420Ingest = { parseWorkbook, buildYear, sniff, buildRoles, splitLeaders, isoDate };
+  // 57107 Adult Involvement: adults who share a Scout are one household, whatever their surnames.
+  // Returns proposed merges [{ name, families, adults, checked, note }]. Scout names stay in memory only.
+  function households(rows, roster) {
+    const match = makeMatcher(roster.map(a => a.name));
+    const famOf = Object.fromEntries(roster.map(a => [a.name, a.family_name]));
+    const parent = {}, find = x => (parent[x] === x ? x : (parent[x] = find(parent[x]))), join = (a, b) => { parent[find(a)] = find(b); };
+    const scoutsOf = {}, adultsOf = {};
+    for (const r of rows || []) {
+      const adult = match(r.Name) || (() => { const [l, f] = String(r.Name).split(",").map(norm); return f ? `${f} ${l}` : null; })();
+      if (!adult) continue;
+      parent[adult] = parent[adult] || adult;
+      for (const sc of String(r.Scouts || "").split(/[;,]/).map(x => norm(x.replace(/"[^"]*"/g, ""))).filter(Boolean)) {
+        (adultsOf[sc] = adultsOf[sc] || []).push(adult); (scoutsOf[adult] = scoutsOf[adult] || []).push(sc);
+      }
+    }
+    Object.values(adultsOf).forEach(as => as.slice(1).forEach(a => join(a, as[0])));
+    const groups = {};
+    Object.keys(parent).forEach(a => (groups[find(a)] = groups[find(a)] || []).push(a));
+    const out = [];
+    for (const adults of Object.values(groups)) {
+      if (adults.length < 2) continue;
+      const fams = [...new Set(adults.map(a => famOf[a] || a.split(" ").pop()))];
+      if (fams.length < 2) continue;
+      const scoutSurnames = [...new Set(adults.flatMap(a => scoutsOf[a] || []).map(s => s.split(" ").pop()))];
+      // drop surnames contained in another ("Gurney" inside "Gurney Greene")
+      const keep = fams.filter(f => !fams.some(g => g !== f && g.toLowerCase().split(/[\s-]+/).includes(f.toLowerCase())));
+      keep.sort((a, b) => (scoutSurnames.some(s => a.includes(s)) ? -1 : 0) - (scoutSurnames.some(s => b.includes(s)) ? -1 : 0) || a.localeCompare(b));
+      const name = keep.join("-");
+      out.push({ name, families: fams, adults: adults.sort(), checked: keep.length <= 2,
+        note: keep.length > 2 ? "Three or more surnames linked through more than one Scout - check before merging" : "" });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  window.T420Ingest = { households, parseWorkbook, buildYear, sniff, buildRoles, splitLeaders, isoDate };
 })();
